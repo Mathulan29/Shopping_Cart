@@ -40,55 +40,153 @@ class MockSupabaseClient {
   }
 }
 
+class MockDatabase {
+  constructor() {
+    this.storageKey = 'mock_supabase_db'
+    this.load()
+  }
+
+  load() {
+    const stored = localStorage.getItem(this.storageKey)
+    this.data = stored ? JSON.parse(stored) : {
+      categories: MOCK_CATEGORIES,
+      products: MOCK_PRODUCTS,
+      cart_items: []
+    }
+  }
+
+  save() {
+    localStorage.setItem(this.storageKey, JSON.stringify(this.data))
+  }
+
+  table(tableName) {
+    if (!this.data[tableName]) {
+      this.data[tableName] = []
+    }
+    return this.data[tableName]
+  }
+
+  insert(tableName, rows) {
+    const newRows = rows.map(row => ({
+      id: `${tableName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      created_at: new Date().toISOString(),
+      ...row
+    }))
+    this.data[tableName].push(...newRows)
+    this.save()
+    return newRows
+  }
+
+  update(tableName, match, updates) {
+    const table = this.table(tableName)
+    const updatedRows = []
+
+    this.data[tableName] = table.map(row => {
+      let isMatch = true
+      for (const [key, value] of Object.entries(match)) {
+        if (row[key] !== value) {
+          isMatch = false
+          break
+        }
+      }
+
+      if (isMatch) {
+        const updatedRow = { ...row, ...updates }
+        updatedRows.push(updatedRow)
+        return updatedRow
+      }
+      return row
+    })
+
+    this.save()
+    return updatedRows
+  }
+
+  delete(tableName, match) {
+    const table = this.table(tableName)
+    const initialLength = table.length
+
+    this.data[tableName] = table.filter(row => {
+      for (const [key, value] of Object.entries(match)) {
+        if (row[key] === value) return false
+      }
+      return true
+    })
+
+    this.save()
+    return initialLength > this.data[tableName].length
+  }
+}
+
+const mockDb = new MockDatabase()
+
 class MockQueryBuilder {
   constructor(table) {
     this.table = table
-    this.data = table === 'categories' ? MOCK_CATEGORIES : table === 'products' ? MOCK_PRODUCTS : []
-    this.filters = []
+    this.result = [...mockDb.table(table)]
+    this.filters = {}
   }
 
   select(columns) {
+    // Basic select support - ignoring specific columns for now, returns all
     return this
   }
 
   insert(data) {
-    // Mock insert - for cart, we'd ideally update local state, but for now just return success
+    this.insertedData = mockDb.insert(this.table, Array.isArray(data) ? data : [data])
     return this
   }
 
   update(data) {
+    this.updateData = data
     return this
   }
 
   delete() {
-    return this
-  }
-
-  order(column, { ascending = true } = {}) {
-    // Basic mock sort
-    return this
-  }
-
-  limit(count) {
-    this.data = this.data.slice(0, count)
+    this.isDelete = true
     return this
   }
 
   eq(column, value) {
-    this.data = this.data.filter(item => item[column] === value)
+    if (this.updateData) {
+      // Perform update immediately for simplicity in this mock chain
+      mockDb.update(this.table, { [column]: value }, this.updateData)
+    } else if (this.isDelete) {
+      mockDb.delete(this.table, { [column]: value })
+    } else {
+      this.result = this.result.filter(item => item[column] === value)
+    }
     return this
   }
 
   in(column, values) {
-    this.data = this.data.filter(item => values.includes(item[column]))
+    this.result = this.result.filter(item => values.includes(item[column]))
+    return this
+  }
+
+  order(column, { ascending = true } = {}) {
+    this.result.sort((a, b) => {
+      if (a[column] < b[column]) return ascending ? -1 : 1
+      if (a[column] > b[column]) return ascending ? 1 : -1
+      return 0
+    })
+    return this
+  }
+
+  limit(count) {
+    this.result = this.result.slice(0, count)
     return this
   }
 
   async then(resolve, reject) {
     // Simulate network delay
     setTimeout(() => {
-      resolve({ data: this.data, error: null })
-    }, 100)
+      if (this.insertedData) {
+        resolve({ data: this.insertedData, error: null })
+      } else {
+        resolve({ data: this.result, error: null })
+      }
+    }, 50)
   }
 }
 

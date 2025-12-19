@@ -30,6 +30,7 @@ export const Header = ({
     await supabase.auth.signOut()
     setUserEmail('')
     setIsMobileMenuOpen(false)
+    window.location.href = '/'
   }
 
   const handleNavigate = (page) => {

@@ -12,7 +12,14 @@ export const CartProvider = ({ children }) => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+
+      if (!user) {
+        // For guest users, we start with what's in the local state (which is empty by default or maintained in memory)
+        // No need to fetch from server.
+        // If we wanted to persist across refresh, we'd read from localStorage here.
+        // But per request, we do not persist.
+        return
+      }
 
       const { data, error } = await supabase
         .from('cart_items')
@@ -31,8 +38,13 @@ export const CartProvider = ({ children }) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      fetchCart()
+    } = supabase.auth.onAuthStateChange((event) => {
+      // Re-fetch on auth state change (login/logout)
+      if (event === 'SIGNED_OUT') {
+        setItems([])
+      } else {
+        fetchCart()
+      }
     })
 
     return () => {
@@ -46,8 +58,32 @@ export const CartProvider = ({ children }) => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) throw new Error('User not authenticated')
 
+      if (!user) {
+        // Guest user: In-memory update
+        const existingItem = items.find((item) => item.product_id === product.id)
+        if (existingItem) {
+          setItems(
+            items.map((item) =>
+              item.product_id === product.id
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
+            )
+          )
+        } else {
+          // Create a valid cart item structure for the frontend
+          const newItem = {
+            id: `guest_${Date.now()}_${product.id}`, // Temporary ID
+            product_id: product.id,
+            quantity,
+            user_id: null,
+          }
+          setItems([...items, newItem])
+        }
+        return
+      }
+
+      // Authenticated user: Supabase update
       const existingItem = items.find((item) => item.product_id === product.id)
 
       if (existingItem) {
@@ -91,6 +127,21 @@ export const CartProvider = ({ children }) => {
         return
       }
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        // Guest user
+        setItems(
+          items.map((item) =>
+            item.id === cartItemId ? { ...item, quantity } : item
+          )
+        )
+        return
+      }
+
+      // Authenticated user
       const { error } = await supabase
         .from('cart_items')
         .update({ quantity, updated_at: new Date().toISOString() })
@@ -112,6 +163,17 @@ export const CartProvider = ({ children }) => {
   const removeItem = async (cartItemId) => {
     setIsLoading(true)
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        // Guest user
+        setItems(items.filter((item) => item.id !== cartItemId))
+        return
+      }
+
+      // Authenticated user
       const { error } = await supabase
         .from('cart_items')
         .delete()
@@ -132,7 +194,11 @@ export const CartProvider = ({ children }) => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+
+      if (!user) {
+        setItems([])
+        return
+      }
 
       const { error } = await supabase
         .from('cart_items')

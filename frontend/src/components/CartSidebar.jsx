@@ -31,38 +31,44 @@ export const CartSidebar = ({ isOpen, onClose }) => {
     return sum + (product ? product.price * item.quantity : 0)
   }, 0)
 
-  const tax = subtotal * 0.08
-  const finalTotal = subtotal + tax
+  // const tax = subtotal * 0.08
+  const finalTotal = subtotal
 
   if (!isOpen) return null
 
   return (
     <>
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
         onClick={onClose}
       />
 
-      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col overflow-hidden">
+      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col overflow-hidden transition-transform duration-300 transform">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800">Shopping Cart</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
           >
             <X size={24} />
           </button>
         </div>
 
         {items.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-5xl mb-4">🛒</div>
-              <p className="text-gray-600 text-lg">Your cart is empty</p>
-              <p className="text-gray-500 text-sm mt-2">
-                Add items to get started
-              </p>
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            <div className="bg-orange-50 p-6 rounded-full mb-4">
+              <div className="text-4xl">🛒</div>
             </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Your cart is empty</h3>
+            <p className="text-gray-500 text-center mb-8 max-w-[200px]">
+              Looks like you haven't added anything to your cart yet.
+            </p>
+            <button
+              onClick={onClose}
+              className="bg-orange-500 text-white px-8 py-3 rounded-lg font-bold hover:bg-orange-600 transition-colors shadow-md hover:shadow-lg w-full max-w-xs"
+            >
+              Start Shopping
+            </button>
           </div>
         ) : (
           <>
@@ -137,10 +143,11 @@ export const CartSidebar = ({ isOpen, onClose }) => {
                 </span>
               </div>
 
-              <div className="flex justify-between text-gray-700">
+              {/* Tax removed as requested */}
+              {/* <div className="flex justify-between text-gray-700">
                 <span>Tax (8%):</span>
                 <span className="font-semibold">${tax.toFixed(2)}</span>
-              </div>
+              </div> */}
 
               <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">
                 <span>Total:</span>

@@ -8,10 +8,10 @@ export const ProductCard = ({ product, onAddClick, isAuthenticated }) => {
   const [isAdding, setIsAdding] = useState(false)
 
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      onAddClick?.()
-      return
-    }
+    // if (!isAuthenticated) {
+    //   onAddClick?.()
+    //   return
+    // }
 
     setIsAdding(true)
     await addItem(product, quantity)
