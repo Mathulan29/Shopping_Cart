@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from './lib/supabase'
 import { Header } from './components/Header'
 import { AuthModal } from './components/AuthModal'
 import { CartSidebar } from './components/CartSidebar'
@@ -8,40 +7,25 @@ import { Products } from './pages/Products'
 import { Profile } from './pages/Profile'
 import { Checkout } from './pages/Checkout'
 
-const App = () => {
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import { AuthProvider, useAuth } from './context/AuthContext'
+
+const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home')
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const { isAuthenticated, user, logout } = useAuth()
 
-  useEffect(() => {
-    checkAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      checkAuth()
-    })
-
-    return () => {
-      subscription && subscription.unsubscribe()
-    }
-  }, [])
-
-  const checkAuth = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    setIsAuthenticated(!!user)
-  }
+  // Remove local auth check effect, handled by AuthContext
 
   const handleAuthSuccess = () => {
-    checkAuth()
     setIsAuthModalOpen(false)
   }
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    logout()
     setCurrentPage('home')
   }
 
@@ -63,7 +47,7 @@ const App = () => {
           />
         )
       case 'profile':
-        return <Profile onLogout={handleLogout} />
+        return <Profile onLogout={handleLogoutClick} />
       default:
         return null
     }
@@ -79,6 +63,7 @@ const App = () => {
         isAuthenticated={isAuthenticated}
         onNavigate={setCurrentPage}
         onProfileClick={() => setCurrentPage('profile')}
+        onLogout={handleLogoutClick}
       />
 
       <main className="flex-1 w-full">{renderPage()}</main>
@@ -192,7 +177,17 @@ const App = () => {
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
       />
+
+      <ToastContainer position="bottom-right" />
     </div>
+  )
+}
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 

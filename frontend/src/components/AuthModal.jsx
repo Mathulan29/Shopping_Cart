@@ -1,13 +1,26 @@
 import React, { useState } from 'react'
 import { X } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    name: '',
+    address: '',
+    nic: '',
+    phoneNumber: '',
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const { login, register } = useAuth()
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -16,25 +29,27 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-        if (error) throw error
+        await login(formData.email, formData.password)
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        })
-        if (error) throw error
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error('Passwords do not match')
+        }
+        await register(formData)
       }
 
       onAuthSuccess()
       onClose()
-      setEmail('')
-      setPassword('')
+      setFormData({
+        email: '',
+        password: '',
+        confirmPassword: '',
+        name: '',
+        address: '',
+        nic: '',
+        phoneNumber: '',
+      })
     } catch (err) {
-      setError(err.message || 'An error occurred')
+      setError(err.response?.data?.message || err.message || 'An error occurred')
     } finally {
       setLoading(false)
     }
@@ -44,7 +59,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform transition-all max-h-[90vh] overflow-y-auto">
         <div className="p-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-3xl font-bold text-gray-800">
@@ -65,32 +80,105 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
               </div>
             )}
 
+            {!isLogin && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white"
+                    placeholder="Full Name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">Phone No</label>
+                  <input
+                    type="text"
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white"
+                    placeholder="Phone Number"
+                    required
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700">Address</label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white"
+                    placeholder="Address"
+                    rows="2"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">NIC No</label>
+                  <input
+                    type="text"
+                    name="nic"
+                    value={formData.nic}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white"
+                    placeholder="NIC Number"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">
                 Email
               </label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white"
                 placeholder="your@email.com"
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
-                placeholder="••••••••"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              {!isLogin && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             <button
@@ -100,7 +188,6 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
             >
               {loading ? 'Processing...' : isLogin ? 'Login' : 'Create Account'}
             </button>
-
             <div className="text-center pt-2">
               <button
                 type="button"

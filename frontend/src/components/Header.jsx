@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ShoppingCart, LogOut, User } from 'lucide-react'
-import { supabase } from '../lib/supabase'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 
 export const Header = ({
   onCartClick,
@@ -9,28 +9,19 @@ export const Header = ({
   onNavigate,
   onProfileClick,
   isAuthenticated,
+  onLogout,
 }) => {
   const { itemCount } = useCart()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [userEmail, setUserEmail] = useState('')
+  const { user } = useAuth()
 
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (user) setUserEmail(user.email || '')
-    }
-
-    getUser()
+    // Auth state is now handled by AuthContext
   }, [isAuthenticated])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    setUserEmail('')
+  const handleLogout = () => {
+    onLogout()
     setIsMobileMenuOpen(false)
-    window.location.href = '/'
   }
 
   const handleNavigate = (page) => {
@@ -100,11 +91,11 @@ export const Header = ({
           </nav>
 
           <div className="flex items-center gap-4">
-            {isAuthenticated && userEmail && (
+            {isAuthenticated && user && (
               <div className="hidden sm:flex items-center gap-2 text-sm">
                 <User size={16} />
                 <span className="text-orange-100">
-                  {userEmail.split('@')[0]}
+                  {user.name || user.email.split('@')[0]}
                 </span>
               </div>
             )}
@@ -171,12 +162,12 @@ export const Header = ({
             </nav>
 
             <div className="border-t border-orange-400 pt-4 px-4">
-              {isAuthenticated ? (
+              {isAuthenticated && user ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm mb-3">
                     <User size={16} />
                     <span className="text-orange-100">
-                      {userEmail}
+                      {user.name || user.email}
                     </span>
                   </div>
                   <button
