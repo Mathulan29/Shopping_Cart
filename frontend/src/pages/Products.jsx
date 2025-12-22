@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import api from '../lib/api'
 import { CategoryFilter } from '../components/CategoryFilter'
 import { ProductList } from '../components/ProductList'
 
-export const Products = ({ onAuthClick, isAuthenticated }) => {
+export const Products = ({ onAuthClick, isAuthenticated, initialState }) => {
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
-  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState(initialState?.category_id || null)
   const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialState?.searchQuery || '')
+
+  useEffect(() => {
+    if (initialState) {
+      setSelectedCategory(initialState.category_id || null)
+      setSearchQuery(initialState.searchQuery || '')
+    }
+  }, [initialState])
 
   useEffect(() => {
     fetchCategories()
@@ -20,13 +27,8 @@ export const Products = ({ onAuthClick, isAuthenticated }) => {
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name')
-
-      if (error) throw error
-      setCategories(data || [])
+      const { data } = await api.get('/categories')
+      setCategories(data)
     } catch (error) {
       console.error('Error fetching categories:', error)
     }
@@ -35,29 +37,19 @@ export const Products = ({ onAuthClick, isAuthenticated }) => {
   const fetchProducts = async () => {
     setIsLoading(true)
     try {
-      let query = supabase
-        .from('products')
-        .select('*')
-        .order('name')
+      let url = '/products'
+      const params = {}
 
       if (selectedCategory) {
-        query = query.eq('category_id', selectedCategory)
+        params.category_id = selectedCategory
       }
 
-      const { data, error } = await query
-
-      if (error) throw error
-
-      let filteredProducts = data || []
       if (searchQuery) {
-        filteredProducts = filteredProducts.filter(
-          (p) =>
-            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
-        )
+        params.searchQuery = searchQuery
       }
 
-      setProducts(filteredProducts)
+      const { data } = await api.get(url, { params })
+      setProducts(data)
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {

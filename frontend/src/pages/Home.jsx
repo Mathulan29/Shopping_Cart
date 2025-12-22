@@ -1,29 +1,27 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowRight, Truck, Shield, Clock } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { ArrowRight, Truck, Shield, Clock, Search } from 'lucide-react'
+import api from '../lib/api'
 import { ProductCard } from '../components/ProductCard'
 
-export const Home = ({ onAuthClick, onCartClick, isAuthenticated }) => {
+export const Home = ({ onAuthClick, onCartClick, isAuthenticated, onNavigateToProducts }) => {
   const [featuredProducts, setFeaturedProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [heroSearch, setHeroSearch] = useState('')
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    onNavigateToProducts({ searchQuery: heroSearch })
+  }
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: categoryData } = await supabase
-          .from('categories')
-          .select('*')
-          .order('name')
+        const { data: categoryData } = await api.get('/categories')
+        const { data: productData } = await api.get('/products?limit=8')
 
-        const { data: productData } = await supabase
-          .from('products')
-          .select('*')
-          .limit(8)
-          .order('created_at', { ascending: false })
-
-        setCategories(categoryData || [])
-        setFeaturedProducts(productData || [])
+        setCategories(categoryData)
+        setFeaturedProducts(productData)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -40,19 +38,30 @@ export const Home = ({ onAuthClick, onCartClick, isAuthenticated }) => {
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-                Fresh Groceries <br />
-                Delivered
-              </h1>
-              <p className="text-xl text-orange-100 mb-8 max-w-lg">
-                Get fresh vegetables, fruits, cakes, and biscuits delivered to your door in minutes.
-              </p>
-              <button
-                onClick={onCartClick}
-                className="bg-white text-orange-600 px-8 py-3.5 rounded-lg font-bold text-lg hover:bg-orange-50 transition-colors inline-flex items-center gap-2 shadow-lg"
-              >
-                Start Shopping <ArrowRight size={20} />
-              </button>
+              <form onSubmit={handleSearch} className="relative max-w-lg mb-8">
+                <input
+                  type="text"
+                  value={heroSearch}
+                  onChange={(e) => setHeroSearch(e.target.value)}
+                  placeholder="Search for fresh food..."
+                  className="w-full pl-6 pr-14 py-4 rounded-full text-gray-800 shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-2 p-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-colors"
+                >
+                  <Search size={24} />
+                </button>
+              </form>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={onCartClick}
+                  className="bg-white text-orange-600 px-8 py-3.5 rounded-lg font-bold text-lg hover:bg-orange-50 transition-colors inline-flex items-center gap-2 shadow-lg"
+                >
+                  Start Shopping <ArrowRight size={20} />
+                </button>
+              </div>
             </div>
             <div className="hidden md:flex justify-center relative">
               <div className="absolute inset-0 bg-white/20 blur-3xl opacity-30 rounded-full"></div>
@@ -99,6 +108,8 @@ export const Home = ({ onAuthClick, onCartClick, isAuthenticated }) => {
         </div>
       </section>
 
+
+
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-8">Featured Products</h2>
@@ -118,25 +129,6 @@ export const Home = ({ onAuthClick, onCartClick, isAuthenticated }) => {
               ))}
             </div>
           )}
-        </div>
-      </section>
-
-      <section className="py-24 bg-orange-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-6">Browse All Categories</h2>
-          <p className="text-orange-100 mb-12 max-w-2xl mx-auto text-lg">
-            Explore our wide range of products across various categories. From fresh produce to household essentials, we have it all.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            {categories.map(category => (
-              <button
-                key={category.id}
-                className="bg-white text-orange-600 hover:bg-orange-50 px-8 py-4 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-1"
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
         </div>
       </section>
     </div>

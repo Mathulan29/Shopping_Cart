@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home')
+  const [productInitialState, setProductInitialState] = useState({})
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
@@ -29,6 +30,11 @@ const AppContent = () => {
     setCurrentPage('home')
   }
 
+  const handleNavigateToProducts = (params = {}) => {
+    setProductInitialState(params)
+    setCurrentPage('products')
+  }
+
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -37,6 +43,7 @@ const AppContent = () => {
             onAuthClick={() => setIsAuthModalOpen(true)}
             onCartClick={() => setIsCartOpen(true)}
             isAuthenticated={isAuthenticated}
+            onNavigateToProducts={handleNavigateToProducts}
           />
         )
       case 'products':
@@ -44,6 +51,7 @@ const AppContent = () => {
           <Products
             onAuthClick={() => setIsAuthModalOpen(true)}
             isAuthenticated={isAuthenticated}
+            initialState={productInitialState}
           />
         )
       case 'profile':
@@ -61,7 +69,10 @@ const AppContent = () => {
         }
         onAuthClick={() => setIsAuthModalOpen(true)}
         isAuthenticated={isAuthenticated}
-        onNavigate={setCurrentPage}
+        onNavigate={(page) => {
+          if (page === 'products') setProductInitialState({})
+          setCurrentPage(page)
+        }}
         onProfileClick={() => setCurrentPage('profile')}
         onLogout={handleLogoutClick}
       />
@@ -91,7 +102,7 @@ const AppContent = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => setCurrentPage('products')}
+                    onClick={() => handleNavigateToProducts({})}
                     className="hover:text-white"
                   >
                     Products
