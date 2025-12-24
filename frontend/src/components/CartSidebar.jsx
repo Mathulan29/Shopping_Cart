@@ -1,40 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { X, Trash2, Plus, Minus } from 'lucide-react'
 import { useCart } from '../context/CartContext'
-import { supabase } from '../lib/supabase'
 
 export const CartSidebar = ({ isOpen, onClose }) => {
-  const { items, removeItem, updateQuantity } = useCart()
-  const [products, setProducts] = useState(new Map())
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      const productIds = items.map((item) => item.product_id)
-      if (productIds.length === 0) return
-
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .in('id', productIds)
-
-      if (!error && data) {
-        const productMap = new Map(data.map((p) => [p.id, p]))
-        setProducts(productMap)
-      }
-    }
-
-    fetchProducts()
-  }, [items])
-
-  const subtotal = items.reduce((sum, item) => {
-    const product = products.get(item.product_id)
-    return sum + (product ? product.price * item.quantity : 0)
-  }, 0)
-
-  // const tax = subtotal * 0.08
-  const finalTotal = subtotal
+  const { items, removeItem, updateQuantity, total } = useCart()
 
   if (!isOpen) return null
+
+  // Ensure items is always an array to prevent crashes
+  const cartItems = Array.isArray(items) ? items : []
 
   return (
     <>
@@ -54,7 +28,7 @@ export const CartSidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {items.length === 0 ? (
+        {cartItems.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8">
             <div className="bg-orange-50 p-6 rounded-full mb-4">
               <div className="text-4xl">🛒</div>
@@ -74,13 +48,20 @@ export const CartSidebar = ({ isOpen, onClose }) => {
           <>
             <div className="flex-1 overflow-y-auto">
               <div className="p-6 space-y-4">
-                {items.map((item) => {
-                  const product = products.get(item.product_id)
-                  if (!product) return null
+                {cartItems.map((item) => {
+                  // Backend populates item.product with the full product object
+                  // If product is null (deleted), use a fallback or skip
+                  const product = item.product || {}
+
+                  // Use item._id or item.id depending on what backend/frontend uses. 
+                  // Mongo uses _id for the item itself.
+                  const itemId = item._id || item.id
+
+                  if (!product.id) return null // Skip invalid items
 
                   return (
                     <div
-                      key={item.id}
+                      key={itemId}
                       className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                     >
                       <div className="flex justify-between items-start mb-3">
@@ -89,11 +70,11 @@ export const CartSidebar = ({ isOpen, onClose }) => {
                             {product.name}
                           </h3>
                           <p className="text-orange-600 font-semibold">
-                            ${product.price.toFixed(2)} each
+                            ${product.price?.toFixed(2)} each
                           </p>
                         </div>
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(itemId)}
                           className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
                         >
                           <Trash2 size={18} />
@@ -104,7 +85,7 @@ export const CartSidebar = ({ isOpen, onClose }) => {
                         <button
                           onClick={() =>
                             updateQuantity(
-                              item.id,
+                              itemId,
                               Math.max(1, item.quantity - 1)
                             )
                           }
@@ -117,7 +98,7 @@ export const CartSidebar = ({ isOpen, onClose }) => {
                         </span>
                         <button
                           onClick={() =>
-                            updateQuantity(item.id, item.quantity + 1)
+                            updateQuantity(itemId, item.quantity + 1)
                           }
                           className="p-1 hover:bg-gray-200 rounded transition-colors"
                         >
@@ -139,20 +120,14 @@ export const CartSidebar = ({ isOpen, onClose }) => {
               <div className="flex justify-between text-gray-700">
                 <span>Subtotal:</span>
                 <span className="font-semibold">
-                  ${subtotal.toFixed(2)}
+                  ${total.toFixed(2)}
                 </span>
               </div>
-
-              {/* Tax removed as requested */}
-              {/* <div className="flex justify-between text-gray-700">
-                <span>Tax (8%):</span>
-                <span className="font-semibold">${tax.toFixed(2)}</span>
-              </div> */}
 
               <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">
                 <span>Total:</span>
                 <span className="text-orange-600">
-                  ${finalTotal.toFixed(2)}
+                  ${total.toFixed(2)}
                 </span>
               </div>
 
@@ -173,3 +148,4 @@ export const CartSidebar = ({ isOpen, onClose }) => {
     </>
   )
 }
+

@@ -10,6 +10,7 @@ import { Checkout } from './pages/Checkout'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { CartProvider } from './context/CartContext'
 
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home')
@@ -197,7 +198,9 @@ const AppContent = () => {
 const App = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <CartProvider>
+        <AppContent />
+      </CartProvider>
     </AuthProvider>
   )
 }

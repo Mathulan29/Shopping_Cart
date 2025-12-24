@@ -1,117 +1,76 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import api from '../lib/api'
+import { useAuth } from './AuthContext'
 
 const CartContext = createContext(undefined)
 
 export const CartProvider = ({ children }) => {
+  const { user, isAuthenticated } = useAuth()
   const [items, setItems] = useState([])
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchCart = async () => {
+    if (!isAuthenticated) {
+      // Guest user: items are already in state (or could be loaded from localStorage if we wanted persistence)
+      // For now, we assume guest items are just in-memory as per previous config.
+      // If we want to clear guest cart on logout, that's handled in useEffect dependence.
+      return
+    }
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        // For guest users, we start with what's in the local state (which is empty by default or maintained in memory)
-        // No need to fetch from server.
-        // If we wanted to persist across refresh, we'd read from localStorage here.
-        // But per request, we do not persist.
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('cart_items')
-        .select('*')
-        .eq('user_id', user.id)
-
-      if (error) throw error
+      const { data } = await api.get('/cart')
+      // Backend returns array of items with populated 'product' field
       setItems(data || [])
     } catch (error) {
       console.error('Error fetching cart:', error)
     }
   }
 
+  // Load cart when user logs in
   useEffect(() => {
-    fetchCart()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      // Re-fetch on auth state change (login/logout)
-      if (event === 'SIGNED_OUT') {
-        setItems([])
-      } else {
-        fetchCart()
-      }
-    })
-
-    return () => {
-      subscription?.unsubscribe()
+    if (isAuthenticated) {
+      fetchCart()
+    } else {
+      // Optional: clear cart on logout or keep it?
+      // Previous logic cleared it.
+      setItems([])
     }
-  }, [])
+  }, [isAuthenticated])
+
 
   const addItem = async (product, quantity) => {
     setIsLoading(true)
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!isAuthenticated) {
         // Guest user: In-memory update
-        const existingItem = items.find((item) => item.product_id === product.id)
+        const existingItem = items.find((item) => item.product.id === product.id)
         if (existingItem) {
           setItems(
             items.map((item) =>
-              item.product_id === product.id
+              item.product.id === product.id
                 ? { ...item, quantity: item.quantity + quantity }
                 : item
             )
           )
         } else {
-          // Create a valid cart item structure for the frontend
+          // Create consistent structure with backend response
           const newItem = {
-            id: `guest_${Date.now()}_${product.id}`, // Temporary ID
-            product_id: product.id,
+            _id: `guest_${Date.now()}_${product.id}`,
+            product: product, // Store full product object
             quantity,
-            user_id: null,
           }
           setItems([...items, newItem])
         }
         return
       }
 
-      // Authenticated user: Supabase update
-      const existingItem = items.find((item) => item.product_id === product.id)
+      // Authenticated user: API Call
+      const { data } = await api.post('/cart', {
+        productId: product.id,
+        quantity
+      })
+      setItems(data)
 
-      if (existingItem) {
-        const { error } = await supabase
-          .from('cart_items')
-          .update({
-            quantity: existingItem.quantity + quantity,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingItem.id)
-
-        if (error) throw error
-        setItems(
-          items.map((item) =>
-            item.id === existingItem.id
-              ? { ...item, quantity: item.quantity + quantity }
-              : item
-          )
-        )
-      } else {
-        const { data, error } = await supabase
-          .from('cart_items')
-          .insert([{ user_id: user.id, product_id: product.id, quantity }])
-          .select()
-
-        if (error) throw error
-        if (data) setItems([...items, ...data])
-      }
     } catch (error) {
       console.error('Error adding item to cart:', error)
     } finally {
@@ -127,32 +86,27 @@ export const CartProvider = ({ children }) => {
         return
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const currentItem = items.find(item => item._id === cartItemId || item.id === cartItemId);
+      if (!currentItem) return;
 
-      if (!user) {
+      if (!isAuthenticated) {
         // Guest user
         setItems(
           items.map((item) =>
-            item.id === cartItemId ? { ...item, quantity } : item
+            (item._id === cartItemId || item.id === cartItemId) ? { ...item, quantity } : item
           )
         )
         return
       }
 
       // Authenticated user
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity, updated_at: new Date().toISOString() })
-        .eq('id', cartItemId)
+      // Backend expects productId in URL, but we have cartItemId (which is the Mongo _id)
+      // We need to use product.id from the item in state
+      const productId = currentItem.product.id;
 
-      if (error) throw error
-      setItems(
-        items.map((item) =>
-          item.id === cartItemId ? { ...item, quantity } : item
-        )
-      )
+      const { data } = await api.put(`/cart/${productId}`, { quantity })
+      setItems(data)
+
     } catch (error) {
       console.error('Error updating cart item:', error)
     } finally {
@@ -163,24 +117,22 @@ export const CartProvider = ({ children }) => {
   const removeItem = async (cartItemId) => {
     setIsLoading(true)
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const currentItem = items.find(item => item._id === cartItemId || item.id === cartItemId);
 
-      if (!user) {
+      if (!isAuthenticated) {
         // Guest user
-        setItems(items.filter((item) => item.id !== cartItemId))
+        setItems(items.filter((item) => item._id !== cartItemId && item.id !== cartItemId))
         return
       }
 
-      // Authenticated user
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('id', cartItemId)
+      if (!currentItem) return;
 
-      if (error) throw error
-      setItems(items.filter((item) => item.id !== cartItemId))
+      // Authenticated user
+      const productId = currentItem.product.id;
+
+      const { data } = await api.delete(`/cart/${productId}`)
+      setItems(data)
+
     } catch (error) {
       console.error('Error removing item from cart:', error)
     } finally {
@@ -191,21 +143,12 @@ export const CartProvider = ({ children }) => {
   const clearCart = async () => {
     setIsLoading(true)
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!isAuthenticated) {
         setItems([])
         return
       }
 
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('user_id', user.id)
-
-      if (error) throw error
+      await api.delete('/cart')
       setItems([])
     } catch (error) {
       console.error('Error clearing cart:', error)
@@ -214,7 +157,12 @@ export const CartProvider = ({ children }) => {
     }
   }
 
-  const total = items.reduce((sum, item) => sum + item.quantity * 25, 0)
+  // Calculate total dynamically based on product price
+  const total = items.reduce((sum, item) => {
+    const price = item.product ? item.product.price : 0;
+    return sum + item.quantity * price;
+  }, 0)
+
   const itemCount = items.reduce((count, item) => count + item.quantity, 0)
 
   return (
