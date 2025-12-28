@@ -12,6 +12,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
     address: '',
     nic: '',
     phoneNumber: '',
+    role: 'user',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -47,6 +48,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
         address: '',
         nic: '',
         phoneNumber: '',
+        role: 'user',
       })
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'An error occurred')
@@ -82,6 +84,33 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
 
             {!isLogin && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700">Account Type</label>
+                  <div className="flex gap-4">
+                    <label className={`flex-1 cursor-pointer border rounded-xl p-3 flex items-center justify-center gap-2 transition-all ${formData.role === 'user' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 hover:border-orange-200'}`}>
+                      <input
+                        type="radio"
+                        name="role"
+                        value="user"
+                        checked={formData.role === 'user'}
+                        onChange={handleChange}
+                        className="hidden"
+                      />
+                      <span className="font-medium">Customer</span>
+                    </label>
+                    <label className={`flex-1 cursor-pointer border rounded-xl p-3 flex items-center justify-center gap-2 transition-all ${formData.role === 'admin' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 hover:border-orange-200'}`}>
+                      <input
+                        type="radio"
+                        name="role"
+                        value="admin"
+                        checked={formData.role === 'admin'}
+                        onChange={handleChange}
+                        className="hidden"
+                      />
+                      <span className="font-medium">Seller / Admin</span>
+                    </label>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">Name</label>
                   <input

@@ -14,7 +14,7 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-    const { email, password, name, address, nic, phoneNumber } = req.body;
+    const { email, password, name, address, nic, phoneNumber, role } = req.body;
 
     try {
         if (!email || !password) {
@@ -40,6 +40,7 @@ const registerUser = async (req, res) => {
             address,
             nic,
             phoneNumber,
+            role: role || 'user',
         });
 
         if (user) {
