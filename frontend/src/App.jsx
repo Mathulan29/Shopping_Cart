@@ -6,6 +6,7 @@ import { Home } from './pages/Home'
 import { Products } from './pages/Products'
 import { Profile } from './pages/Profile'
 import { Checkout } from './pages/Checkout'
+import { AdminDashboard } from './pages/AdminDashboard'
 
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -55,6 +56,8 @@ const AppContent = () => {
             initialState={productInitialState}
           />
         )
+      case 'admin':
+        return <AdminDashboard />
       case 'profile':
         return <Profile onLogout={handleLogoutClick} />
       default:

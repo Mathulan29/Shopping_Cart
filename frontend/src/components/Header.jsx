@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ShoppingCart, LogOut, User } from 'lucide-react'
+import { ShoppingCart, LogOut, User, LayoutDashboard } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -88,6 +88,15 @@ export const Header = ({
             >
               Products
             </button>
+            {isAuthenticated && user?.role === 'admin' && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="hover:text-orange-100 transition-colors font-semibold flex items-center gap-1"
+              >
+                <LayoutDashboard size={18} />
+                Admin
+              </button>
+            )}
           </nav>
 
           <div className="flex items-center gap-4">
@@ -159,6 +168,15 @@ export const Header = ({
               >
                 Products
               </button>
+              {isAuthenticated && user?.role === 'admin' && (
+                <button
+                  onClick={() => handleNavigate('admin')}
+                  className="text-left py-2 px-4 hover:bg-orange-600 rounded-lg transition-colors font-semibold flex items-center gap-2"
+                >
+                  <LayoutDashboard size={18} />
+                  Admin Dashboard
+                </button>
+              )}
             </nav>
 
             <div className="border-t border-orange-400 pt-4 px-4">
